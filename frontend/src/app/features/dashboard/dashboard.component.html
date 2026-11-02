@@ -1,0 +1,183 @@
+<div class="dashboard-root">
+  <!-- Top Global Command Bar -->
+  <header class="dashboard-header">
+    <div class="header-branding">
+      <div class="logo-mark">
+        <span class="logo-icon">⚡</span>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">
+          <h1>NexusFlow</h1>
+          <span class="badge-tag">ENTERPRISE STUDIO</span>
+        </div>
+        <p class="brand-subtitle">Autonomous Cyclic Agentic Software Generation & Architectural Audit</p>
+      </div>
+    </div>
+
+    <!-- Central Model & Hyperparameter Controls -->
+    <div class="header-controls">
+      <!-- Coder Model Select -->
+      <div class="control-group">
+        <label>Coder Agent Model</label>
+        <select [ngModel]="workflow.selectedCoderModel()" (ngModelChange)="workflow.selectedCoderModel.set($event)">
+          <option *ngFor="let m of workflow.availableModels" [value]="m.id">{{ m.name }}</option>
+        </select>
+      </div>
+
+      <!-- Reviewer Model Select -->
+      <div class="control-group">
+        <label>Reviewer Agent Model</label>
+        <select [ngModel]="workflow.selectedReviewerModel()" (ngModelChange)="workflow.selectedReviewerModel.set($event)">
+          <option *ngFor="let m of workflow.availableModels" [value]="m.id">{{ m.name }}</option>
+        </select>
+      </div>
+
+      <!-- Loop Threshold -->
+      <div class="control-group small">
+        <label>Max Loops</label>
+        <select [ngModel]="workflow.maxIterations()" (ngModelChange)="workflow.maxIterations.set(+$event)">
+          <option [value]="1">1 Iteration</option>
+          <option [value]="2">2 Iterations</option>
+          <option [value]="3">3 Iterations</option>
+          <option [value]="5">5 Iterations</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Right Diagnostics, History Drawer Button & Database Status -->
+    <div class="header-diagnostics">
+      <div class="lang-indicator-pill">
+        <span class="dot"></span>
+        <span>Language: <strong>{{ workflow.effectiveLanguage() }}</strong></span>
+      </div>
+
+      <button class="history-toggle-btn" (click)="openHistory()" title="Open MS SQL Server Execution History">
+        🗄️ SQL History ({{ workflow.historyList().length }})
+      </button>
+
+      <div class="diag-item">
+        <span class="diag-label">FastAPI Backend</span>
+        <span class="diag-pill" [class.online]="workflow.backendHealth()?.status === 'healthy'">
+          {{ workflow.backendHealth()?.status === 'healthy' ? 'ONLINE (8000)' : 'CONNECTING...' }}
+        </span>
+      </div>
+      <div class="diag-item">
+        <span class="diag-label">MS SQL Server</span>
+        <span class="diag-pill db-pill" [class.online]="workflow.backendHealth()?.database?.status === 'connected'">
+          {{ workflow.backendHealth()?.database?.status === 'connected' ? 'NexusFlowDb' : 'OFFLINE' }}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Dynamic Agent Stepper Progress Bar & Platform Analytics -->
+  <div class="agent-stepper-bar">
+    <div class="stepper-track">
+      <div 
+        class="step-node" 
+        *ngFor="let step of stepperSteps; let i = index"
+        [class.active]="isStepActive(step.id)"
+        [class.completed]="isStepPassed(step.id)">
+        <div class="step-icon-wrapper">
+          <span class="step-icon">{{ step.icon }}</span>
+          <div class="step-pulse" *ngIf="isStepActive(step.id)"></div>
+        </div>
+        <div class="step-info">
+          <span class="step-name">{{ step.label }}</span>
+          <span class="step-state" *ngIf="isStepActive(step.id)">RUNNING</span>
+          <span class="step-state pass" *ngIf="isStepPassed(step.id) && !isStepActive(step.id)">COMPLETED</span>
+        </div>
+        <div class="step-connector" *ngIf="i < stepperSteps.length - 1"></div>
+      </div>
+    </div>
+
+    <!-- Platform Analytics Quick Pill -->
+    <div class="analytics-pill" *ngIf="workflow.analyticsMetrics()">
+      <span class="ana-item">Runs: <strong>{{ workflow.analyticsMetrics()?.total_runs }}</strong></span>
+      <span class="ana-item">Pass Rate: <strong>{{ workflow.analyticsMetrics()?.pass_rate_percentage }}%</strong></span>
+      <span class="ana-item">Avg Loops: <strong>{{ workflow.analyticsMetrics()?.average_iterations }}</strong></span>
+    </div>
+
+    <!-- Architectural Quality Scorecard Widget -->
+    <div class="quality-scorecard" *ngIf="workflow.qualityScorecard().overallScore > 0">
+      <div class="score-main">
+        <span class="score-number">{{ workflow.qualityScorecard().overallScore }}</span>
+        <span class="score-label">QUALITY SCORE</span>
+      </div>
+      <div class="score-breakdown">
+        <div class="metric">
+          <span>Tests: {{ workflow.qualityScorecard().testPassRate }}%</span>
+          <div class="progress-bar"><div class="fill" [style.width.%]="workflow.qualityScorecard().testPassRate"></div></div>
+        </div>
+        <div class="metric">
+          <span>Standards: {{ workflow.qualityScorecard().codeQualityScore }}%</span>
+          <div class="progress-bar"><div class="fill purple" [style.width.%]="workflow.qualityScorecard().codeQualityScore"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Split Studio Workspace -->
+  <main class="studio-workspace">
+    <section class="left-pane">
+      <app-chat-panel></app-chat-panel>
+    </section>
+
+    <section class="right-pane">
+      <app-code-viewer></app-code-viewer>
+    </section>
+  </main>
+
+  <!-- Slide-out Session History Drawer (MS SQL Server) -->
+  <div class="history-backdrop" *ngIf="workflow.isHistoryDrawerOpen()" (click)="workflow.toggleHistoryDrawer()"></div>
+  <aside class="history-drawer" [class.open]="workflow.isHistoryDrawerOpen()">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <span class="icon">🗄️</span>
+        <h3>SQL Server Session History</h3>
+      </div>
+      <button class="close-btn" (click)="workflow.toggleHistoryDrawer()">✕</button>
+    </div>
+
+    <div class="drawer-metrics" *ngIf="workflow.analyticsMetrics()">
+      <div class="m-card">
+        <span class="val">{{ workflow.analyticsMetrics()?.total_runs }}</span>
+        <span class="lbl">Total Runs</span>
+      </div>
+      <div class="m-card">
+        <span class="val green">{{ workflow.analyticsMetrics()?.pass_rate_percentage }}%</span>
+        <span class="lbl">Pass Rate</span>
+      </div>
+      <div class="m-card">
+        <span class="val cyan">{{ workflow.analyticsMetrics()?.total_files_synthesized }}</span>
+        <span class="lbl">Files Created</span>
+      </div>
+    </div>
+
+    <div class="drawer-content">
+      <div class="history-list" *ngIf="workflow.historyList().length > 0; else noHistory">
+        <div class="history-item" *ngFor="let item of workflow.historyList()">
+          <div class="item-top">
+            <span class="status-badge" [class.pass]="item.status === 'completed'">
+              {{ item.status | uppercase }}
+            </span>
+            <span class="iter-tag">{{ item.iterations }} Loops • {{ item.files_count }} Files</span>
+            <span class="date">{{ item.created_at | date:'short' }}</span>
+          </div>
+          <div class="item-prompt">{{ item.prompt }}</div>
+          <div class="item-footer">
+            <span class="session-id">ID: {{ item.session_id }}</span>
+            <button class="load-btn" (click)="loadSession(item.session_id)">
+              Restore Session &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+      <ng-template #noHistory>
+        <div class="empty-drawer">
+          <p>No historical sessions found in SQL Server table 'WorkflowExecutions'.</p>
+        </div>
+      </ng-template>
+    </div>
+  </aside>
+</div>

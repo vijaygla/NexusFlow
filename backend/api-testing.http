@@ -1,0 +1,105 @@
+### ==============================================================================
+### NexusFlow Enterprise Multi-Agent Architecture - Complete API Testing Suite
+### Base URL: http://localhost:8000
+### ==============================================================================
+
+@baseUrl = http://localhost:8000
+@contentType = application/json
+
+### 1. Health Diagnostics & System Readiness
+# Verifies system health, DB connection to MS SQL Server, and configured AI models
+GET {{baseUrl}}/health
+Accept: {{contentType}}
+
+###
+
+### 2. Standalone Code Execution Sandbox - Python
+POST {{baseUrl}}/api/workflow/validate
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "code": "def fibonacci(n):\n    if n <= 1:\n        return n\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b\n\nassert fibonacci(10) == 55\nprint('Fibonacci calculation successful: fib(10) =', fibonacci(10))",
+  "language": "python"
+}
+
+###
+
+### 3. Standalone Code Execution Sandbox - Node.js / JavaScript
+POST {{baseUrl}}/api/workflow/validate
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "code": "const sum = [10, 20, 30, 40].reduce((a, b) => a + b, 0);\nconsole.log('Node.js array reduction:', sum);",
+  "language": "javascript"
+}
+
+###
+
+### 4. Automated Static Security & Vulnerability Scan
+POST {{baseUrl}}/api/workflow/security-scan
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "code": "import os\nuser_input = 'admin'\n# Insecure dynamic evaluation and shell execution\neval('1 + 1')\nos.system('echo ' + user_input)\n"
+}
+
+###
+
+### 5. Execution History Retrieval (MS SQL Server)
+GET {{baseUrl}}/api/workflow/history?limit=10
+Accept: {{contentType}}
+
+###
+
+### 6. Platform Performance Analytics (MS SQL Server)
+GET {{baseUrl}}/api/workflow/analytics
+Accept: {{contentType}}
+
+###
+
+### 7. Synchronous Multi-Agent Workflow Execution
+POST {{baseUrl}}/api/workflow/execute
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "prompt": "Create a high-performance Python LRU Cache class with get, put, capacity limit, and unit tests using unittest.",
+  "session_id": "test-session-lru-cache-001",
+  "max_iterations": 3,
+  "language": "python"
+}
+
+###
+
+### 8. Asynchronous Real-Time Server-Sent Events (SSE) Streaming
+POST {{baseUrl}}/api/workflow/stream
+Content-Type: {{contentType}}
+Accept: text/event-stream
+
+{
+  "prompt": "Build an algorithmic binary search tree in Python with insert, search, in-order traversal, and unit tests.",
+  "session_id": "test-session-bst-stream-002",
+  "max_iterations": 3,
+  "language": "python"
+}
+
+###
+
+### 9. Error Handling Verification - Structured 404 Not Found
+GET {{baseUrl}}/api/workflow/unknown-endpoint
+Accept: {{contentType}}
+
+###
+
+### 10. Error Handling Verification - Structured 422 Unprocessable Entity
+POST {{baseUrl}}/api/workflow/execute
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "prompt": "",
+  "max_iterations": 0
+}

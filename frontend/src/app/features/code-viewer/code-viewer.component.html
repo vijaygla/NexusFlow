@@ -1,0 +1,286 @@
+<div class="code-viewer-container">
+  <!-- Top Navigation & Tabs Bar -->
+  <div class="viewer-header">
+    <!-- View Switchers (Code / Review / Sandbox / Security) -->
+    <div class="view-switchers">
+      <button 
+        class="switcher-btn" 
+        [class.active]="activeTab() === 'code'"
+        (click)="activeTab.set('code')">
+        💻 Code Editor ({{ fileNames().length }})
+      </button>
+      <button 
+        class="switcher-btn" 
+        [class.active]="activeTab() === 'review'"
+        (click)="activeTab.set('review')">
+        🔍 Reviewer Audit
+        <span class="badge" *ngIf="workflow.reviewFeedback()">Ready</span>
+      </button>
+      <button 
+        class="switcher-btn" 
+        [class.active]="activeTab() === 'sandbox'"
+        (click)="activeTab.set('sandbox')">
+        ⚡ Sandbox
+        <span class="badge live" *ngIf="workflow.executionResult()">
+          {{ workflow.executionResult()?.success ? 'PASS' : 'FAIL' }}
+        </span>
+      </button>
+      <button 
+        class="switcher-btn" 
+        [class.active]="activeTab() === 'security'"
+        (click)="activeTab.set('security')">
+        🛡️ Security Audit
+        <span class="badge sec" *ngIf="workflow.securityReport()">
+          {{ workflow.securityReport()?.overall_score }}%
+        </span>
+      </button>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+      <!-- Sandbox Language Dropdown -->
+      <div class="sandbox-lang-picker" *ngIf="activeTab() === 'code' || activeTab() === 'sandbox'">
+        <select [ngModel]="workflow.sandboxLanguage()" (ngModelChange)="workflow.sandboxLanguage.set($event)">
+          <option *ngFor="let lang of workflow.availableLanguages" [value]="lang.id">{{ lang.name }}</option>
+        </select>
+      </div>
+
+      <button 
+        class="action-btn run-btn" 
+        (click)="workflow.runActiveFileInSandbox()"
+        [disabled]="fileNames().length === 0">
+        ▶ Run Sandbox
+      </button>
+
+      <!-- Diff Toggle Button -->
+      <button 
+        class="action-btn diff-btn" 
+        [class.active]="workflow.diffMode()"
+        (click)="toggleDiff()"
+        [disabled]="workflow.iterationHistory().length < 1"
+        title="Compare code additions and deletions against previous loop">
+        {{ workflow.diffMode() ? '⇄ Exit Diff' : '⇄ Diff Mode' }}
+      </button>
+
+      <button 
+        class="action-btn" 
+        (click)="copyCurrentCode()"
+        [disabled]="fileNames().length === 0">
+        {{ copied() ? '✓ Copied' : '📋 Copy' }}
+      </button>
+      <button 
+        class="action-btn" 
+        (click)="downloadCurrentFile()"
+        [disabled]="fileNames().length === 0">
+        💾 Save File
+      </button>
+      <button 
+        class="action-btn export-btn" 
+        (click)="workflow.downloadProjectBundle()"
+        [disabled]="fileNames().length === 0">
+        📦 Export Bundle
+      </button>
+    </div>
+  </div>
+
+  <!-- Sub-bar: File Tabs & Iteration Time Machine -->
+  <div class="sub-header-bar" *ngIf="activeTab() === 'code'">
+    <div class="file-tabs">
+      <button 
+        class="file-tab" 
+        *ngFor="let file of fileNames()" 
+        [class.active]="file === workflow.activeFileName()"
+        (click)="selectFile(file)">
+        <span class="tab-icon">📄</span>
+        <span class="tab-name">{{ file }}</span>
+      </button>
+      <span class="empty-tabs-hint" *ngIf="fileNames().length === 0">
+        No files synthesized yet. Dispatch a specification to begin.
+      </span>
+    </div>
+
+    <!-- Iteration Time Machine Selector -->
+    <div class="time-machine" *ngIf="workflow.iterationHistory().length > 0">
+      <span class="tm-label">Time Machine:</span>
+      <button 
+        class="tm-pill" 
+        [class.active]="workflow.selectedIteration() === 0"
+        (click)="setIteration(0)">
+        Latest (v{{ workflow.iterations() }})
+      </button>
+      <button 
+        class="tm-pill" 
+        *ngFor="let snap of workflow.iterationHistory(); let idx = index"
+        [class.active]="workflow.selectedIteration() === idx + 1"
+        (click)="setIteration(idx + 1)">
+        v{{ idx + 1 }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Content Pane: Code View / Diff View -->
+  <div class="code-viewport" *ngIf="activeTab() === 'code'">
+    <!-- Standard Code View -->
+    <div class="code-wrapper" *ngIf="!workflow.diffMode()">
+      <div class="line-numbers">
+        <span *ngFor="let line of codeLines(); let i = index">{{ i + 1 }}</span>
+      </div>
+      <div class="code-lines">
+        <pre><code class="language-python">{{ workflow.activeFileContent() || '# Awaiting synthesized code from Coder Agent...' }}</code></pre>
+      </div>
+    </div>
+
+    <!-- Diff Comparison View -->
+    <div class="diff-wrapper" *ngIf="workflow.diffMode()">
+      <div class="diff-header">
+        <span>Showing Diff Comparison: Changes synthesized in this iteration</span>
+      </div>
+      <div class="diff-lines-list">
+        <div 
+          class="diff-line" 
+          *ngFor="let d of workflow.diffLines()" 
+          [ngClass]="'diff-' + d.type">
+          <span class="line-type-indicator">
+            {{ d.type === 'add' ? '+' : (d.type === 'del' ? '-' : ' ') }}
+          </span>
+          <span class="line-num">{{ d.numB || d.numA || '' }}</span>
+          <span class="line-content">{{ d.text }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Pane: Reviewer Audit View -->
+  <div class="review-viewport" *ngIf="activeTab() === 'review'">
+    <div class="review-card" *ngIf="workflow.reviewFeedback(); else noReview">
+      <div class="review-header">
+        <div class="review-title">
+          <h4>Principal Reviewer Architectural Assessment</h4>
+          <span class="iteration-tag">Iteration {{ workflow.iterations() }}</span>
+        </div>
+        <div 
+          class="verdict-banner" 
+          [class.pass]="workflow.qualityScorecard().verdict === 'PASS'"
+          [class.fail]="workflow.qualityScorecard().verdict === 'NEEDS_REVISION'">
+          Verdict: {{ workflow.qualityScorecard().verdict }}
+        </div>
+      </div>
+      <div class="review-body">
+        <pre class="markdown-preview">{{ workflow.reviewFeedback() }}</pre>
+      </div>
+    </div>
+    <ng-template #noReview>
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <h4>No Reviewer Audit Available Yet</h4>
+        <p>The Reviewer Agent will automatically inspect the code, verify unit tests, and post architectural critiques here.</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <!-- Content Pane: Sandbox Terminal View -->
+  <div class="sandbox-viewport" *ngIf="activeTab() === 'sandbox'">
+    <div class="terminal-card" *ngIf="workflow.executionResult(); else noExec">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="terminal-title">NexusFlow Multi-Language Sandbox Telemetry ({{ workflow.executionResult()?.language || 'python' | uppercase }})</div>
+        <div class="exec-meta">
+          <span class="time-tag">Runtime: {{ workflow.executionResult()?.execution_time_seconds || 0 }}s</span>
+          <span 
+            class="status-tag" 
+            [class.success]="workflow.executionResult()?.success"
+            [class.error]="!workflow.executionResult()?.success">
+            Exit Code: {{ workflow.executionResult()?.exit_code }}
+          </span>
+        </div>
+      </div>
+      <div class="terminal-body">
+        <div class="stream-section" *ngIf="workflow.executionResult()?.stdout">
+          <div class="section-label">[STANDARD OUTPUT]</div>
+          <pre class="stdout-text">{{ workflow.executionResult()?.stdout }}</pre>
+        </div>
+        <div class="stream-section error-section" *ngIf="workflow.executionResult()?.stderr">
+          <div class="section-label">[STANDARD ERROR / STACK TRACE]</div>
+          <pre class="stderr-text">{{ workflow.executionResult()?.stderr }}</pre>
+        </div>
+        <div class="stream-section" *ngIf="!workflow.executionResult()?.stdout && !workflow.executionResult()?.stderr">
+          <pre class="stdout-text">(Process terminated cleanly with no terminal output)</pre>
+        </div>
+      </div>
+    </div>
+    <ng-template #noExec>
+      <div class="empty-state">
+        <div class="icon">⚡</div>
+        <h4>Sandbox Inactive</h4>
+        <p>Click "Run Sandbox" to execute the active script in an isolated subprocess environment.</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <!-- Content Pane: Security Vulnerability Audit View -->
+  <div class="security-viewport" *ngIf="activeTab() === 'security'">
+    <div class="sec-card" *ngIf="workflow.securityReport(); else noSec">
+      <div class="sec-header">
+        <div class="sec-title-group">
+          <h4>Automated Static Security & Vulnerability Audit</h4>
+          <span class="sec-score-pill" [class.clean]="workflow.securityReport()?.verdict === 'CLEAN'">
+            Security Score: {{ workflow.securityReport()?.overall_score }}/100 ({{ workflow.securityReport()?.verdict }})
+          </span>
+        </div>
+        <button class="re-scan-btn" (click)="workflow.runSecurityAudit()" [disabled]="workflow.isRunningSecurity()">
+          {{ workflow.isRunningSecurity() ? 'Auditing...' : '↻ Re-Scan' }}
+        </button>
+      </div>
+
+      <div class="sec-summary-stats">
+        <div class="stat-box">
+          <span class="num">{{ workflow.securityReport()?.files_analyzed }}</span>
+          <span class="label">Files Analyzed</span>
+        </div>
+        <div class="stat-box">
+          <span class="num" [class.zero]="workflow.securityReport()?.total_vulnerabilities === 0">
+            {{ workflow.securityReport()?.total_vulnerabilities }}
+          </span>
+          <span class="label">Total Vulnerabilities</span>
+        </div>
+        <div class="stat-box">
+          <span class="num green" *ngIf="workflow.securityReport()?.total_vulnerabilities === 0">0 HIGH</span>
+          <span class="num red" *ngIf="workflow.securityReport()?.total_vulnerabilities! > 0">FLAGGED</span>
+          <span class="label">Severity Level</span>
+        </div>
+      </div>
+
+      <!-- Vulnerability Item List -->
+      <div class="vuln-list" *ngIf="workflow.securityReport()?.vulnerabilities?.length! > 0">
+        <div class="vuln-item" *ngFor="let v of workflow.securityReport()?.vulnerabilities">
+          <div class="vuln-header">
+            <span class="sev-badge" [attr.data-sev]="v.severity">{{ v.severity }}</span>
+            <span class="vuln-name">{{ v.name }} ({{ v.id }})</span>
+            <span class="vuln-loc">{{ v.file }}: Line {{ v.line }}</span>
+          </div>
+          <div class="vuln-snippet">
+            <code>{{ v.snippet }}</code>
+          </div>
+          <div class="vuln-msg">{{ v.message }}</div>
+          <div class="vuln-rec"><strong>Recommendation:</strong> {{ v.recommendation }}</div>
+        </div>
+      </div>
+
+      <div class="clean-banner" *ngIf="workflow.securityReport()?.total_vulnerabilities === 0">
+        <div class="check-icon">✓</div>
+        <h5>No Security Vulnerabilities Detected</h5>
+        <p>Code passed static checks for dynamic code execution, command injection, hardcoded secrets, and SQL injections.</p>
+      </div>
+    </div>
+    <ng-template #noSec>
+      <div class="empty-state">
+        <div class="icon">🛡️</div>
+        <h4>Security Auditor Ready</h4>
+        <p>Synthesize or load a codebase, then click Re-Scan to run static vulnerability analysis.</p>
+        <button class="action-btn" (click)="workflow.runSecurityAudit()" style="margin-top: 14px;">Run Security Scan</button>
+      </div>
+    </ng-template>
+  </div>
+</div>

@@ -1,0 +1,128 @@
+<div class="chat-container">
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <div class="header-title">
+      <div class="pulsing-dot" [class.active]="workflow.isStreaming()"></div>
+      <h3>Multi-Agent Dialogue & Directives</h3>
+    </div>
+    <div class="header-badges">
+      <span class="lang-tag">
+        {{ workflow.effectiveLanguage() }}
+      </span>
+      <span class="loop-badge" *ngIf="workflow.iterations() > 0">
+        Loop: {{ workflow.iterations() }}/{{ workflow.maxIterations() }}
+      </span>
+      <span class="status-pill" [attr.data-status]="workflow.currentNode()">
+        {{ workflow.currentNode() | uppercase }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Dialogue History Area -->
+  <div class="messages-area">
+    <div class="welcome-box" *ngIf="workflow.messages().length === 0">
+      <div class="welcome-icon">⚡</div>
+      <h4>Universal Autonomous Software Engineer</h4>
+      <p>NexusFlow writes, tests, and audits production code in <strong>ANY programming language</strong>. Select your language from the dropdown below or specify any custom framework.</p>
+      
+      <div class="quick-prompts">
+        <span class="quick-label">Try an enterprise blueprint:</span>
+        <div class="prompt-chips">
+          <button 
+            type="button" 
+            class="chip-btn" 
+            *ngFor="let qp of quickPrompts" 
+            (click)="selectQuickPrompt(qp)">
+            {{ qp }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Message Bubbles -->
+    <div 
+      class="message-row" 
+      *ngFor="let msg of workflow.messages()" 
+      [ngClass]="'sender-' + msg.sender">
+      <div class="avatar">
+        <span *ngIf="msg.sender === 'user'">👤</span>
+        <span *ngIf="msg.sender === 'coder'">🤖</span>
+        <span *ngIf="msg.sender === 'reviewer'">🔍</span>
+        <span *ngIf="msg.sender === 'system'">⚙️</span>
+      </div>
+      <div class="message-bubble">
+        <div class="message-meta">
+          <span class="sender-name">{{ msg.sender | uppercase }}</span>
+          <span class="time">{{ msg.timestamp | date:'shortTime' }}</span>
+        </div>
+        <div class="message-text">{{ msg.content }}</div>
+      </div>
+    </div>
+
+    <!-- Live Token Generation Stream Chunk Box -->
+    <div class="message-row sender-agent live-stream-box" *ngIf="workflow.isStreaming() && workflow.currentTokens()">
+      <div class="avatar">⚡</div>
+      <div class="message-bubble stream-glow">
+        <div class="message-meta">
+          <span class="sender-name">LIVE STREAMING ({{ workflow.currentNode() | uppercase }} • {{ workflow.effectiveLanguage() }})</span>
+          <span class="typing-indicator"><span>.</span><span>.</span><span>.</span></span>
+        </div>
+        <div class="message-text raw-stream-code">{{ workflow.currentTokens() }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area with Universal Language Selector & Voice Dictation -->
+  <div class="chat-input-wrapper">
+    <div class="input-controls">
+      <div class="input-toolbar">
+        <div class="lang-select-group">
+          <label>Language:</label>
+          <select 
+            [ngModel]="workflow.targetLanguage()" 
+            (ngModelChange)="workflow.setTargetLanguage($event)">
+            <option *ngFor="let lang of workflow.availableLanguages" [value]="lang.id">
+              {{ lang.name }}
+            </option>
+          </select>
+
+          <!-- Custom language write-in field -->
+          <input 
+            *ngIf="workflow.targetLanguage() === 'custom'" 
+            type="text" 
+            class="custom-lang-input"
+            placeholder="Type any language (e.g. Zig, Elixir, Haskell, Dart)..."
+            [ngModel]="workflow.customLanguageName()"
+            (ngModelChange)="workflow.customLanguageName.set($event)">
+        </div>
+
+        <button 
+          type="button" 
+          class="voice-btn" 
+          [class.recording]="workflow.isListeningSpeech()"
+          (click)="toggleSpeechRecognition()"
+          title="Dictate requirement via microphone">
+          <span class="mic-icon">{{ workflow.isListeningSpeech() ? '🔴 Listening...' : '🎙️ Voice Dictation' }}</span>
+        </button>
+      </div>
+
+      <textarea 
+        rows="3" 
+        [placeholder]="'Enter specification in ' + workflow.effectiveLanguage() + ' (e.g. Build an Async Worker Pool with Backpressure)...'"
+        [(ngModel)]="userPrompt"
+        (keydown)="onKeyDown($event)"
+        [disabled]="workflow.isStreaming()"></textarea>
+      
+      <div class="input-actions">
+        <span class="hint">Shift + Enter for new line • Enter to execute</span>
+        <button 
+          class="send-btn" 
+          (click)="submitPrompt()" 
+          [disabled]="!userPrompt.trim() || workflow.isStreaming()">
+          <span *ngIf="!workflow.isStreaming()">Dispatch Cycle &rarr;</span>
+          <span *ngIf="workflow.isStreaming()" class="spinner-text">Synthesizing...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
